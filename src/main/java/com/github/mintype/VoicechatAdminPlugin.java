@@ -1,9 +1,7 @@
 package com.github.mintype;
 
 import de.maxhenkel.voicechat.api.*;
-import de.maxhenkel.voicechat.api.events.EventRegistration;
-import de.maxhenkel.voicechat.api.events.MicrophonePacketEvent;
-import de.maxhenkel.voicechat.api.events.VoicechatServerStartedEvent;
+import de.maxhenkel.voicechat.api.events.*;
 import net.minecraft.server.level.ServerPlayer;
 //import de.maxhenkel.voicechat.api.ServerPlayer;
 
@@ -35,6 +33,8 @@ public class VoicechatAdminPlugin implements VoicechatPlugin {
     public void registerEvents(EventRegistration registration) {
         registration.registerEvent(VoicechatServerStartedEvent.class, this::onServerStarted);
         registration.registerEvent(MicrophonePacketEvent.class, this::onMicrophonePacket);
+        registration.registerEvent(LeaveGroupEvent.class, this::onGroupLeave);
+        registration.registerEvent(JoinGroupEvent.class, this::onGroupJoin);
     }
 
     private void onServerStarted(VoicechatServerStartedEvent event) {
@@ -61,6 +61,24 @@ public class VoicechatAdminPlugin implements VoicechatPlugin {
             if (!isOperator) {
                 event.cancel(); // Drops the audio packet
 
+            }
+        }
+    }
+
+    private void onGroupLeave(LeaveGroupEvent event) {
+        // If global mute is active, then forbid anyone including operators from leaving the global group.
+        if (isGlobalMuted) {
+            event.cancel();
+        }
+    }
+
+    private void onGroupJoin(JoinGroupEvent event) {
+        if (globalGroup == null || event.getGroup() == null) return;
+
+        // If client tries to join the global group when global mute is inactive, then cancel the event.
+        if (event.getGroup().equals(globalGroup)) {
+            if (!isGlobalMuted) {
+                event.cancel();
             }
         }
     }
